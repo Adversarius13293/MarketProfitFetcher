@@ -8,18 +8,17 @@ import java.util.Scanner;
 
 public class ItemNameParser {
 
-	public ItemNameParser() {
-
+	private ItemNameParser() {
 	}
 
 	// https://github.com/broderickhyman/ao-bin-dumps/blob/master/formatted/items.txt
 	// expects lines in format:
 	// <number>:<uniquename>[:<display name>]
-	public List<Item> parseInputFile(File inputFile) {
+	public static List<Item> parseInputFile(String inputFilePath) {
 		List<Item> results = new ArrayList<>();
 		Scanner myReader;
 		try {
-			myReader = new Scanner(inputFile);
+			myReader = new Scanner(new File(inputFilePath));
 			while (myReader.hasNextLine()) {
 				String line = myReader.nextLine();
 				String[] splitted = line.split(":", 3);
