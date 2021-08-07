@@ -24,3 +24,14 @@ build
 .classpath
 .project
 .settings
+
+# swagger codegen not needed (?) stuff
+.swagger*
+.travis.yml
+build.*
+docs/
+git_push.sh
+gradle*
+settings.gradle
+src/main/AndroidManifest.xml
+src/test/
