@@ -4,6 +4,9 @@ import io.swagger.client.model.MarketResponse;
 
 public class Item {
 
+	public static double tax = 0.06;
+	public static double setupFee = 0.015;
+
 	private String itemTypeId;
 	private String displayName;
 	private String city;
@@ -87,12 +90,44 @@ public class Item {
 		if (itemTypeId.contains("@")) {
 			return itemTypeId.split("@")[1];
 		} else {
-			return "-1";
+			return "0";
 		}
+	}
+
+	public String getTier() {
+		String[] splitted = itemTypeId.split("_");
+		if (splitted.length >= 2 && splitted[0].startsWith("T") && splitted[0].length() == 2) {
+			return splitted[0].substring(1);
+		} else
+			return "-";
+	}
+
+	public String getQualityString() {
+		switch (quality) {
+		case 1:
+			return "Normal";
+		case 2:
+			return "Good";
+		case 3:
+			return "Outstanding";
+		case 4:
+			return "Excellent";
+		case 5:
+			return "Masterpiece";
+		default:
+			return "Unknown";
+		}
+	}
+
+	public double getProfitFactor() {
+		return sellPriceMin * (1 - tax - setupFee) / (buyPriceMax * (1 + setupFee)) - 1;
 	}
 
 	@Override
 	public String toString() {
-		return displayName;
+		return "Profit: " + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName + ", Tier:"
+				+ getTier() + ", Enchantment:" + getEnchantment() + ", Quality:" + getQualityString() + ", Buy:"
+				+ buyPriceMax + ", Sell:" + sellPriceMin + ", DailyCount:" + avgItemCount + ", City:" + city + ", Id:"
+				+ itemTypeId;
 	}
 }
