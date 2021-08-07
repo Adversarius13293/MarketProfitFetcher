@@ -3,7 +3,9 @@ package adver.sarius.albion.mpf;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class ItemNameParser {
@@ -14,8 +16,8 @@ public class ItemNameParser {
 	// https://github.com/broderickhyman/ao-bin-dumps/blob/master/formatted/items.txt
 	// expects lines in format:
 	// <number>:<uniquename>[:<display name>]
-	public static List<Item> parseInputFile(String inputFilePath) {
-		List<Item> results = new ArrayList<>();
+	public static Map<String, String> parseInputFile(String inputFilePath) {
+		Map<String, String> results = new HashMap<>();
 		Scanner myReader;
 		try {
 			myReader = new Scanner(new File(inputFilePath));
@@ -23,9 +25,9 @@ public class ItemNameParser {
 				String line = myReader.nextLine();
 				String[] splitted = line.split(":", 3);
 				if (splitted.length == 2) {
-					results.add(new Item(Integer.parseInt(splitted[0].trim()), splitted[1].trim(), ""));
+					results.put(splitted[1].trim(), "");
 				} else if (splitted.length == 3) {
-					results.add(new Item(Integer.parseInt(splitted[0].trim()), splitted[1].trim(), splitted[2].trim()));
+					results.put(splitted[1].trim(), splitted[2].trim());
 				} else {
 					System.out.println("Found unparsable line: " + line);
 				}
