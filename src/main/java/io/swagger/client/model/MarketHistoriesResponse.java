@@ -33,10 +33,10 @@ public class MarketHistoriesResponse {
   @SerializedName("location")
   private String location = null;
 
-  @SerializedName("itemTypeId")
+  @SerializedName("item_id")
   private String itemTypeId = null;
 
-  @SerializedName("qualityLevel")
+  @SerializedName("quality")
   private Integer qualityLevel = null;
 
   @SerializedName("data")

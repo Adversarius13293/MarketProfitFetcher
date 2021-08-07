@@ -28,13 +28,13 @@ import org.threeten.bp.OffsetDateTime;
 
 @javax.annotation.Generated(value = "io.swagger.codegen.v3.generators.java.JavaClientCodegen", date = "2021-08-06T23:40:29.678+02:00[Europe/Berlin]")
 public class MarketHistoryResponse {
-  @SerializedName("itemCount")
+  @SerializedName("item_count")
   private Long itemCount = null;
 
-  @SerializedName("averagePrice")
+  @SerializedName("avg_price")
   private Long averagePrice = null;
 
-  @SerializedName("timestamp")
+  @SerializedName("timestamp_ignore")
   private OffsetDateTime timestamp = null;
 
   public MarketHistoryResponse itemCount(Long itemCount) {

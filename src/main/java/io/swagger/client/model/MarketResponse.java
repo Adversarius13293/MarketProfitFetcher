@@ -28,37 +28,37 @@ import org.threeten.bp.OffsetDateTime;
 
 @javax.annotation.Generated(value = "io.swagger.codegen.v3.generators.java.JavaClientCodegen", date = "2021-08-06T23:40:29.678+02:00[Europe/Berlin]")
 public class MarketResponse {
-  @SerializedName("itemTypeId")
+  @SerializedName("item_id")
   private String itemTypeId = null;
 
   @SerializedName("city")
   private String city = null;
 
-  @SerializedName("qualityLevel")
+  @SerializedName("quality")
   private Integer qualityLevel = null;
 
-  @SerializedName("sellPriceMin")
+  @SerializedName("sell_price_min")
   private Long sellPriceMin = null;
 
-  @SerializedName("sellPriceMinDate")
+  @SerializedName("sell_price_min_date_ignore")
   private OffsetDateTime sellPriceMinDate = null;
 
-  @SerializedName("sellPriceMax")
+  @SerializedName("sell_price_max")
   private Long sellPriceMax = null;
 
-  @SerializedName("sellPriceMaxDate")
+  @SerializedName("sell_price_max_date_ignore")
   private OffsetDateTime sellPriceMaxDate = null;
 
-  @SerializedName("buyPriceMin")
+  @SerializedName("buy_price_min")
   private Long buyPriceMin = null;
 
-  @SerializedName("buyPriceMinDate")
+  @SerializedName("buy_price_min_date_ignore")
   private OffsetDateTime buyPriceMinDate = null;
 
-  @SerializedName("buyPriceMax")
+  @SerializedName("buy_price_max")
   private Long buyPriceMax = null;
 
-  @SerializedName("buyPriceMaxDate")
+  @SerializedName("buy_price_max_date_ignore")
   private OffsetDateTime buyPriceMaxDate = null;
 
   public MarketResponse itemTypeId(String itemTypeId) {
