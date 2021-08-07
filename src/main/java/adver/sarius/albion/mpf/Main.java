@@ -18,25 +18,24 @@ import io.swagger.client.model.MarketHistoryResponse;
 import io.swagger.client.model.MarketResponse;
 
 public class Main {
-
-//	static final double setupFee = 0.015; // for sell and buy orders
-//	private double tax = 0.03; // 0.03 for premium, 0.06 for f2p
-
-	private long minPrice = 0; // what I want to sell for at least
-	private long maxPrice = Long.MAX_VALUE; // what I want to pay at most
-	private double minWinPercent = 0.10;
-	private String cities = "Fort Sterling"; // comma separated, or empty for all
-	private int avgCountTimespan = 3; // in days
-	private int minCount = 10; // average count over the given timespan, to filter out dead items
-	private boolean filterMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite profit.
-	private int showResults = 30;
-
 	private Map<String, String> allItemNames;
 	private PricesApi pricesApi = new PricesApi();
 	private ChartsApi chartsApi = new ChartsApi();
 
+	private long minPrice = 0; // what I want to sell for at least
+	private long maxPrice = 25000; // what I want to pay at most
+	private double minWinPercent = 0.10; // how much percent of the investment after taxes
+	private String cities = "Fort Sterling"; // comma separated, or empty for all
+	private int avgCountTimespan = 3; // in days
+	private int minCount = 100; // average count over the given timespan, to filter out dead items
+	private boolean filterMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite profit.
+	private int showResults = 70; // number of displayed results
+
 	public static void main(String[] args) {
-		new Main().doStuff();
+		Item.setupFee = 0.015; // for sell and buy orders
+		Item.tax = 0.06; // 0.03 for premium, 0.06 for f2p
+		
+		new Main().getFlippingProfits();
 	}
 
 	// Used swagger-codegen for client:
@@ -50,7 +49,11 @@ public class Main {
 		chartsApi.getApiClient().setBasePath("https://www.albion-online-data.com");
 	}
 
-	public void doStuff() {
+	// TODO: Just collect prices and history for every item, and filter afterwards?
+	// TODO: Black Market and Caerleon fetcher
+	// TODO: Artifact salvage profits
+	
+	public void getFlippingProfits() {
 		System.out.println("Reading all item names");
 		allItemNames = ItemNameParser.parseInputFile("itemnames.txt");
 		List<Item> matchingItems = new ArrayList<>();
@@ -96,7 +99,6 @@ public class Main {
 
 			}
 		}
-		// TODO: Just collect prices and history for every item, and filter afterwards?
 
 		List<Item> finalResult = matchingItems.stream().filter(i -> {
 			return i.getAvgItemCount() >= minCount;
@@ -115,7 +117,8 @@ public class Main {
 				Item item = new Item(mr);
 				if (item.getSellPriceMin() > this.minPrice && item.getBuyPriceMax() < this.maxPrice
 						&& item.getProfitFactor() > minWinPercent
-						&& (!filterMissingBuyPrice || item.getBuyPriceMax() > 0)) {
+						&& (!filterMissingBuyPrice || (item.getBuyPriceMax() > 0
+								&& !(item.getBuyPriceMax() == 1 && item.getSellPriceMin() > 50)))) {
 					item.setDisplayName(allItemNames.get(item.getItemTypeId()));
 					matchingItems.add(item);
 				}
