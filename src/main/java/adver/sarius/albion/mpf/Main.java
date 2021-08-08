@@ -26,6 +26,7 @@ public class Main {
 	private long maxPrice = 25000; // what I want to pay at most
 	private double minWinPercent = 0.10; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
+	private String qualities = "1"; // qualities to search for, numbers comma separated, empty for all
 	private int avgCountTimespan = 3; // in days
 	private int minCount = 100; // average count over the given timespan, to filter out dead items
 	private boolean filterMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite profit.
@@ -112,7 +113,7 @@ public class Main {
 
 	private void sendPriceRequest(String items, List<Item> matchingItems) {
 		try {
-			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, "");
+			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, qualities);
 			for (MarketResponse mr : prices) {
 				Item item = new Item(mr);
 				if (item.getSellPriceMin() > this.minPrice && item.getBuyPriceMax() < this.maxPrice
