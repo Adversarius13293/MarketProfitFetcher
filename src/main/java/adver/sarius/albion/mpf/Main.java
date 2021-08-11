@@ -1,5 +1,6 @@
 package adver.sarius.albion.mpf;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -23,25 +24,43 @@ public class Main {
 	private ChartsApi chartsApi = new ChartsApi();
 
 	private long minPrice = 0; // what I want to sell for at least
-	private long maxPrice = 25000; // what I want to pay at most
+	private long maxPrice = 90000; // what I want to pay at most
 	private double minWinPercent = 0.10; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
-	private String qualities = "1"; // qualities to search for, numbers comma separated, empty for all
+	private String qualities = ""; // qualities to search for, empty for all
 	private int avgCountTimespan = 3; // in days
-	private int minCount = 100; // average count over the given timespan, to filter out dead items
-	private boolean filterMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite profit.
-	private int showResults = 70; // number of displayed results
+	private int minCount = 30; // average count over the given timespan, to filter out dead items
+	// TODO: Switch to minBuyPrice? To Filter out 0, or 0 and 1?
+	private boolean filterOutMissingBuyPrice = false; // filter out results with buyprice 0 and therefore infinite
+														// profit.
+	private int showResults = 100; // number of displayed results
+
+	private int reusableCounter = 0;
+
+	// TODO: Just collect prices and history for every item, and filter afterwards?
+	// TODO: Black Market and Caerleon fetcher
+	// TODO: Artifact salvage profits
+	// TODO: Use local swagger.json for correct names and maybe dates?
+	// TODO: Evaluate the date on prices. To show old ones I should check manually.
+	// Also if there is history for every day.
+	// TODO: Get items with no sell price, since i can define the value? they should
+	// have a profit value of -1.
 
 	public static void main(String[] args) {
 		Item.setupFee = 0.015; // for sell and buy orders
 		Item.tax = 0.06; // 0.03 for premium, 0.06 for f2p
-		
-		new Main().getFlippingProfits();
+
+		Main myMain = new Main();
+		List<Item> items = myMain.loadItemsAndPrices();
+		myMain.loadItemHistories(items);
+
+		myMain.printFlippingProfits(items);
 	}
 
 	// Used swagger-codegen for client:
 	// java -jar swagger-codegen-cli-3.0.27.jar generate -i
 	// https://www.albion-online-data.com/api/v2/swagger.json -l java
+	//
 	// Need to manually map returned attribute names, since they somehow don't match
 	// the swagger.json
 	// Can't get date parsing to work, so don't map them correctly.
@@ -50,45 +69,71 @@ public class Main {
 		chartsApi.getApiClient().setBasePath("https://www.albion-online-data.com");
 	}
 
-	// TODO: Just collect prices and history for every item, and filter afterwards?
-	// TODO: Black Market and Caerleon fetcher
-	// TODO: Artifact salvage profits
-	
-	public void getFlippingProfits() {
-		System.out.println("Reading all item names");
-		allItemNames = ItemNameParser.parseInputFile("itemnames.txt");
-		List<Item> matchingItems = new ArrayList<>();
-		System.out.println("Requesting prices");
-		int maxLength = 7000; // query multiple items in one request. But the requests must not be too long.
-		StringBuilder builder = new StringBuilder(maxLength);
+	public void printFlippingProfits(List<Item> items) {
+		// qualities check this way only works for up to 9, but since 5 is the current
+		// max it should be fine
+		List<Item> finalResult = items.stream().filter(i -> {
+			return i.getSellPriceMin() > this.minPrice && i.getBuyPriceMax() < this.maxPrice
+					&& i.getProfitFactor() > minWinPercent && i.getAvgItemCount() >= minCount
+					&& (!filterOutMissingBuyPrice || i.getBuyPriceMax() > 0)
+					&& (qualities.isEmpty() || qualities.contains(i.getQuality() + ""));
+		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
+		printItems(finalResult, "Flipping profits");
+	}
 
+	private void printItems(List<Item> items, String listName) {
+		System.out.println(listName);
+		for (int i = 0; i < Math.min(showResults, items.size()); i++) {
+			System.out.println(items.get(i));
+		}
+	}
+
+	public List<Item> loadItemsAndPrices() {
+		// TODO: file parsing in extra method?
+		log("Reading all item names...");
+		allItemNames = ItemNameParser.parseInputFile("itemnames.txt");
+		log("...Successfully read " + allItemNames.size() + " item names");
+
+		List<Item> items = new ArrayList<>();
+		log("Requesting all prices...");
+		// minimize number of requests. But the requests must not be too long.
+		// arbitrary picked this number after some tests.
+		int maxLength = 7000;
+		StringBuilder builder = new StringBuilder(maxLength);
+		reusableCounter = 0;
 		for (String i : allItemNames.keySet()) {
 			if ((builder.length() + i.length()) >= maxLength) {
+				// unnecessary comma seem to be ignored, but just do it clean
 				builder.deleteCharAt(0);
-				sendPriceRequest(builder.toString(), matchingItems);
+				sendPriceRequest(builder.toString(), items);
 				builder = new StringBuilder(maxLength);
-//				System.out.println("debug break");break;
 			}
 			builder.append(',');
 			builder.append(i);
-
 		}
 		if (builder.length() > 0) {
 			builder.deleteCharAt(0);
-			sendPriceRequest(builder.toString(), matchingItems);
+			sendPriceRequest(builder.toString(), items);
 		}
+		log("...Received " + items.size() + " item prices from " + reusableCounter + " requests");
+		return items;
+	}
 
-		maxLength = 5500;
+	public void loadItemHistories(List<Item> items) {
+		int maxLength = 5500;
+		StringBuilder builder = new StringBuilder(maxLength);
+		log("Getting histories for items...");
+		// TODO: Get possible qualities from items list to have it generic?
 		for (int quality = 1; quality <= 5; quality++) {
-			System.out.println("Getting history for quality " + quality);
 			builder = new StringBuilder(maxLength);
-			for (Item i : matchingItems) {
+			for (Item i : items) {
+				// TODO: is a filtered stream more efficient/simpler?
 				if (i.getQuality() != quality) {
 					continue;
 				}
 				if ((builder.length() + i.getItemTypeId().length()) >= maxLength) {
 					builder.deleteCharAt(0);
-					sendHistoryRequest(builder.toString(), matchingItems, quality);
+					sendHistoryRequest(builder.toString(), items, quality);
 					builder = new StringBuilder(maxLength);
 				}
 				builder.append(',');
@@ -96,42 +141,35 @@ public class Main {
 			}
 			if (builder.length() > 0) {
 				builder.deleteCharAt(0);
-				sendHistoryRequest(builder.toString(), matchingItems, quality);
-
+				sendHistoryRequest(builder.toString(), items, quality);
 			}
 		}
-
-		List<Item> finalResult = matchingItems.stream().filter(i -> {
-			return i.getAvgItemCount() >= minCount;
-		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
-
-		System.out.println("Found results:");
-		for (int i = 0; i < Math.min(showResults, finalResult.size()); i++) {
-			System.out.println(finalResult.get(i));
-		}
+		log("...Histories done");
 	}
 
 	private void sendPriceRequest(String items, List<Item> matchingItems) {
 		try {
-			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, qualities);
+			reusableCounter++;
+			// note: requesting things without qualities like resources will only return the
+			// no-quality-1 result, if "qualities" string is kept empty. But as soon other
+			// items of the same request return other qualities, the non-quality items will
+			// also be returned with all the same qualities and therefore without any price?
+			// TODO: even remove cities filter?
+			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, "");
 			for (MarketResponse mr : prices) {
 				Item item = new Item(mr);
-				if (item.getSellPriceMin() > this.minPrice && item.getBuyPriceMax() < this.maxPrice
-						&& item.getProfitFactor() > minWinPercent
-						&& (!filterMissingBuyPrice || (item.getBuyPriceMax() > 0
-								&& !(item.getBuyPriceMax() == 1 && item.getSellPriceMin() > 50)))) {
-					item.setDisplayName(allItemNames.get(item.getItemTypeId()));
-					matchingItems.add(item);
-				}
+				item.setDisplayName(allItemNames.get(item.getItemTypeId()));
+				matchingItems.add(item);
 			}
 		} catch (ApiException e) {
-			System.out.println("Error! " + e);
+			logError("Api error while requesting prices! " + e);
 		}
 	}
 
 	private void sendHistoryRequest(String items, List<Item> matchingItems, int quality) {
 		try {
-			// some weird date manipulation until it matched the ingame stats.
+			// some weird date manipulation until it matched the ingame stats
+			// TODO: should make some more tests if it works for all times of the day
 			List<MarketHistoriesResponse> res = chartsApi.apiV2StatsHistoryItemListFormatGet(items, "json", cities,
 					OffsetDateTime.now().minusDays(avgCountTimespan).truncatedTo(ChronoUnit.DAYS).plusHours(5),
 					OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS).plusHours(5), quality + "", 24);
@@ -145,13 +183,25 @@ public class Main {
 							&& i.getQuality() == mhr.getQualityLevel();
 				}).findAny();
 				if (!found.isPresent()) {
-					System.out.println("Got history for unknown item: " + mhr);
+					logError("Got history for unknown item, will skip it: " + mhr);
 					continue;
 				}
+				// many items do not return a history entry for every day, which can greatly
+				// reduce the average. But there are also items that just did not get sold that
+				// day. Probably have to live with that.
 				found.get().setAvgItemCount(sum / avgCountTimespan);
 			}
 		} catch (ApiException e) {
-			System.out.println("Error! " + e);
+			logError("Api error while requesting Histories " + e);
 		}
+	}
+
+	// proper logging framework would be nice, but I am too lazy
+	private void log(String message) {
+		System.out.println(LocalTime.now() + ": " + message);
+	}
+
+	private void logError(String message) {
+		System.err.println(LocalTime.now() + ": " + message);
 	}
 }
