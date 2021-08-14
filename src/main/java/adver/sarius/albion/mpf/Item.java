@@ -119,15 +119,34 @@ public class Item {
 		}
 	}
 
+	/**
+	 * @return The percentage of the buy price you make as profit, after taxes.
+	 */
 	public double getProfitFactor() {
 		return sellPriceMin * (1 - tax - setupFee) / (buyPriceMax * (1 + setupFee)) - 1;
 	}
 
+	/**
+	 * Buying an item for 10 silver and selling it for 100 is a nice profit, but not
+	 * worth the effort if there are only sold 10 a day. Buying an item for 10
+	 * silver while selling it for 12 doesn't sound that profitable, but if you can
+	 * do 5.000 of that item a day, its way better. And buying an item for 20k and
+	 * selling for 30k is even better, even if it only sells once a day.
+	 * 
+	 * Of course not every single item that day will be bought and sold by you, but
+	 * this value should give a good direction.
+	 * 
+	 * @return avgItemCount * buyPrice * profitFactor
+	 */
+	public double getBuyPower() {
+		return avgItemCount * buyPriceMax * getProfitFactor();
+	}
+
 	@Override
 	public String toString() {
-		return "Profit: " + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName + ", Tier:"
-				+ getTier() + ", Enchantment:" + getEnchantment() + ", Quality:" + getQualityString() + ", Buy:"
-				+ buyPriceMax + ", Sell:" + sellPriceMin + ", DailyCount:" + avgItemCount + ", City:" + city + ", Id:"
-				+ itemTypeId;
+		return "Profit:" + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName
+				+ ", Enchantment:" + getEnchantment() + ", Quality:" + getQualityString() + ", Tier:" + getTier()
+				+ ", Buy:" + buyPriceMax + ", Sell:" + sellPriceMin + ", DailyCount:" + avgItemCount + ", City:" + city
+				+ ", Id:" + itemTypeId;
 	}
 }

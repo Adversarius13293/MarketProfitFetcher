@@ -24,17 +24,18 @@ public class Main {
 	private ChartsApi chartsApi = new ChartsApi();
 
 	private long minPrice = 0; // what I want to sell for at least
-	private long maxPrice = 90000; // what I want to pay at most
-	private double minWinPercent = 0.10; // how much percent of the investment after taxes
+	private long maxPrice = 200000; // what I want to pay at most
+	private double minWinPercent = 0.20; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
-	private String qualities = ""; // qualities to search for, empty for all
+	private String qualities = "1,4,5"; // qualities to search for, comma separated, empty for all
 	private int avgCountTimespan = 3; // in days
-	private int minCount = 30; // average count over the given timespan, to filter out dead items
+	private int minCount = 15; // average count over the given timespan, to filter out dead items
 	// TODO: Switch to minBuyPrice? To Filter out 0, or 0 and 1?
-	private boolean filterOutMissingBuyPrice = false; // filter out results with buyprice 0 and therefore infinite
+	private boolean filterOutMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite
 														// profit.
 	private int showResults = 100; // number of displayed results
 
+	// internal counter for logging
 	private int reusableCounter = 0;
 
 	// TODO: Just collect prices and history for every item, and filter afterwards?
@@ -45,16 +46,27 @@ public class Main {
 	// Also if there is history for every day.
 	// TODO: Get items with no sell price, since i can define the value? they should
 	// have a profit value of -1.
+	// TODO: Remove invalid item qualities by using the xml items
 
 	public static void main(String[] args) {
 		Item.setupFee = 0.015; // for sell and buy orders
 		Item.tax = 0.06; // 0.03 for premium, 0.06 for f2p
+		ProcessingItems.useDirectBuy = true;
+		ProcessingItems.useDirectSell = false;
 
 		Main myMain = new Main();
 		List<Item> items = myMain.loadItemsAndPrices();
 		myMain.loadItemHistories(items);
 
+		log("Parsing xml...");
+		ItemXmlParser xmlParser = new ItemXmlParser("items.xml");
+		log("...Done parsing xml");
+		log("Reading artifact salvaging...");
+		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
+		myMain.printArtifactSalvageProfits(artifactSalvage);
+
 		myMain.printFlippingProfits(items);
+		log("Program finished.");
 	}
 
 	// Used swagger-codegen for client:
@@ -69,6 +81,24 @@ public class Main {
 		chartsApi.getApiClient().setBasePath("https://www.albion-online-data.com");
 	}
 
+	public void printArtifactSalvageProfits(List<ProcessingItems> salvaging) {
+		// TODO: filtering by count
+		log("Filtering artifact salvage results...");
+		List<ProcessingItems> finalResult = salvaging.stream().filter(i -> {
+			boolean qualitiesFit = i.getItemsIn().keySet().stream()
+					.allMatch(item -> qualities.contains(item.getQuality() + ""))
+					&& i.getItemsOut().keySet().stream().allMatch(item -> qualities.contains(item.getQuality() + ""));
+			boolean citiesFit = i.getItemsIn().keySet().stream().allMatch(item -> cities.contains(item.getCity()))
+					&& i.getItemsOut().keySet().stream().allMatch(item -> cities.contains(item.getCity()));
+
+			return i.getSellValue() > this.minPrice && i.getBuyValue() < this.maxPrice
+					&& i.getProfitFactor() > minWinPercent && (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
+					&& (cities.isEmpty() || citiesFit) && (qualities.isEmpty() || qualitiesFit);
+		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed())
+				.collect(Collectors.toList());
+		printList(finalResult, "Artifact salvaging:");
+	}
+
 	public void printFlippingProfits(List<Item> items) {
 		// qualities check this way only works for up to 9, but since 5 is the current
 		// max it should be fine
@@ -76,16 +106,18 @@ public class Main {
 			return i.getSellPriceMin() > this.minPrice && i.getBuyPriceMax() < this.maxPrice
 					&& i.getProfitFactor() > minWinPercent && i.getAvgItemCount() >= minCount
 					&& (!filterOutMissingBuyPrice || i.getBuyPriceMax() > 0)
+					&& (cities.isEmpty() || cities.contains(i.getCity()))
 					&& (qualities.isEmpty() || qualities.contains(i.getQuality() + ""));
 		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
-		printItems(finalResult, "Flipping profits");
+		printList(finalResult, "Flipping profits:");
 	}
 
-	private void printItems(List<Item> items, String listName) {
-		System.out.println(listName);
+	private void printList(List<?> items, String listName) {
+		log(listName);
 		for (int i = 0; i < Math.min(showResults, items.size()); i++) {
 			System.out.println(items.get(i));
 		}
+		System.out.println(System.lineSeparator());
 	}
 
 	public List<Item> loadItemsAndPrices() {
@@ -150,12 +182,11 @@ public class Main {
 	private void sendPriceRequest(String items, List<Item> matchingItems) {
 		try {
 			reusableCounter++;
-			// note: requesting things without qualities like resources will only return the
+			// note: requesting things without qualities like resources will return only the
 			// no-quality-1 result, if "qualities" string is kept empty. But as soon other
 			// items of the same request return other qualities, the non-quality items will
 			// also be returned with all the same qualities and therefore without any price?
-			// TODO: even remove cities filter?
-			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, "");
+			List<MarketResponse> prices = pricesApi.apiV2StatsPricesItemListFormatGet(items, "json", cities, qualities);
 			for (MarketResponse mr : prices) {
 				Item item = new Item(mr);
 				item.setDisplayName(allItemNames.get(item.getItemTypeId()));
@@ -197,11 +228,11 @@ public class Main {
 	}
 
 	// proper logging framework would be nice, but I am too lazy
-	private void log(String message) {
+	private static void log(String message) {
 		System.out.println(LocalTime.now() + ": " + message);
 	}
 
-	private void logError(String message) {
+	private static void logError(String message) {
 		System.err.println(LocalTime.now() + ": " + message);
 	}
 }
