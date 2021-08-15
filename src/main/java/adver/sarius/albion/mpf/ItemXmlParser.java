@@ -21,7 +21,7 @@ import org.xml.sax.SAXException;
 public class ItemXmlParser {
 	private Document xmlDoc;
 
-	// 
+	//
 	public ItemXmlParser(String filePath) {
 		// xml parsing from:
 		// https://mkyong.com/java/how-to-read-xml-file-in-java-dom-parser/
@@ -42,6 +42,28 @@ public class ItemXmlParser {
 		} catch (ParserConfigurationException | SAXException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+	}
+
+	public void removeInvalidItemQualities(List<Item> items) {
+		for (int i = 0; i < xmlDoc.getChildNodes().item(0).getChildNodes().getLength(); i++) {
+			Node node = xmlDoc.getChildNodes().item(0).getChildNodes().item(i);
+			if (node.getNodeType() == Node.ELEMENT_NODE) {
+				Node uniquenameAttribute = node.getAttributes().getNamedItem("uniquename");
+				if (uniquenameAttribute != null) {
+					String itemName = uniquenameAttribute.getNodeValue();
+					Node maxqualitylevelAttribute = node.getAttributes().getNamedItem("maxqualitylevel");
+					items.removeIf(item -> (item.getItemTypeId().equals(itemName)
+							|| item.getItemTypeId().startsWith(itemName + "@"))
+							&& item.getQuality() > (maxqualitylevelAttribute == null ? 1
+									: Integer.parseInt(maxqualitylevelAttribute.getNodeValue())));
+
+					if (!items.stream().anyMatch(item -> item.getItemTypeId().equals(itemName)
+							|| item.getItemTypeId().startsWith(itemName + "@"))) {
+						Main.log("Found unknown entry in xml: " + uniquenameAttribute);
+					}
+				}
+			}
 		}
 	}
 

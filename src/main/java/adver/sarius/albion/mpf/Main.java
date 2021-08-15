@@ -51,16 +51,22 @@ public class Main {
 	public static void main(String[] args) {
 		Item.setupFee = 0.015; // for sell and buy orders
 		Item.tax = 0.06; // 0.03 for premium, 0.06 for f2p
-		ProcessingItems.useDirectBuy = true;
+		ProcessingItems.useDirectBuy = false;
 		ProcessingItems.useDirectSell = false;
 
 		Main myMain = new Main();
 		List<Item> items = myMain.loadItemsAndPrices();
-		myMain.loadItemHistories(items);
 
 		log("Parsing xml...");
 		ItemXmlParser xmlParser = new ItemXmlParser("items.xml");
 		log("...Done parsing xml");
+		log("Removing invalid item qualities...");
+		int size = items.size();
+		xmlParser.removeInvalidItemQualities(items);
+		log("...Removed " + (size - items.size()) + " items");
+
+		myMain.loadItemHistories(items);
+//
 		log("Reading artifact salvaging...");
 		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
 		myMain.printArtifactSalvageProfits(artifactSalvage);
@@ -228,11 +234,11 @@ public class Main {
 	}
 
 	// proper logging framework would be nice, but I am too lazy
-	private static void log(String message) {
+	public static void log(String message) {
 		System.out.println(LocalTime.now() + ": " + message);
 	}
 
-	private static void logError(String message) {
+	public static void logError(String message) {
 		System.err.println(LocalTime.now() + ": " + message);
 	}
 }
