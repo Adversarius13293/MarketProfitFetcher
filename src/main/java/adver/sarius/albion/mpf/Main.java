@@ -27,9 +27,9 @@ public class Main {
 	private long maxPrice = 200000; // what I want to pay at most
 	private double minWinPercent = 0.20; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
-	private String qualities = "1,4,5"; // qualities to search for, comma separated, empty for all
+	private String qualities = "1"; // qualities to search for, comma separated, empty for all
 	private int avgCountTimespan = 3; // in days
-	private int minCount = 15; // average count over the given timespan, to filter out dead items
+	private int minCount = 5; // average count over the given timespan, to filter out dead items
 	// TODO: Switch to minBuyPrice? To Filter out 0, or 0 and 1?
 	private boolean filterOutMissingBuyPrice = true; // filter out results with buyprice 0 and therefore infinite
 														// profit.
@@ -60,13 +60,23 @@ public class Main {
 		log("Parsing xml...");
 		ItemXmlParser xmlParser = new ItemXmlParser("items.xml");
 		log("...Done parsing xml");
+
 		log("Removing invalid item qualities...");
 		int size = items.size();
+		// TODO: Some items still need to be filtered by quality. Like empty journals,
+		// since the xml does not contain the _EMTPY item id
+		// --> Journals are fixed now, but there might be more?
 		xmlParser.removeInvalidItemQualities(items);
 		log("...Removed " + (size - items.size()) + " items");
 
+		myMain.filterOutSpecificItems(items);
+
 		myMain.loadItemHistories(items);
-//
+
+		log("Filtering missing prices...");
+		myMain.printMissingBuyPrices(items);
+		myMain.printMissingSellPrices(items);
+
 		log("Reading artifact salvaging...");
 		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
 		myMain.printArtifactSalvageProfits(artifactSalvage);
@@ -85,6 +95,39 @@ public class Main {
 	public Main() {
 		pricesApi.getApiClient().setBasePath("https://www.albion-online-data.com");
 		chartsApi.getApiClient().setBasePath("https://www.albion-online-data.com");
+	}
+
+	public void printMissingBuyPrices(List<Item> items) {
+		List<Item> finalResult = items.stream().filter(i -> {
+			return i.getBuyPriceMax() <= 0 && (cities.isEmpty() || cities.contains(i.getCity()))
+					&& (qualities.isEmpty() || qualities.contains(i.getQuality() + ""));
+		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
+		printList(finalResult, "Missing buy prices:");
+	}
+
+	public void printMissingSellPrices(List<Item> items) {
+		List<Item> finalResult = items.stream().filter(i -> {
+			return i.getSellPriceMin() <= 0 && (cities.isEmpty() || cities.contains(i.getCity()))
+					&& (qualities.isEmpty() || qualities.contains(i.getQuality() + ""));
+		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
+		printList(finalResult, "Missing sell prices:");
+	}
+
+	/**
+	 * Manually filter out specific items which can not be traded at the market.
+	 * 
+	 * @param items list to remove items from.
+	 */
+	private void filterOutSpecificItems(List<Item> items) {
+		// TODO: Need to filter out cosmetics like CAPE_PLATE_KEEPER. Which is probably
+		// not tradeable and the relevant item only is
+		// UNIQUE_UNLOCK_T6_CAPE_PLATE_KEEPER. (The craftable item itself is
+		// T#_CAPEITEM_KEEPER)
+		int size = items.size();
+		items.removeIf(i -> i.getDisplayName().contains("(Partially Full)")
+				|| i.getDisplayName().startsWith("Delivery:") || i.getDisplayName().equals("Letter of Transfer")
+				|| i.getDisplayName().startsWith("Rogue Adventurer's") || i.getItemTypeId().contains("_CRYSTALLEAGUE"));
+		log("Filtered out " + (size - items.size()) + " specific items");
 	}
 
 	public void printArtifactSalvageProfits(List<ProcessingItems> salvaging) {
@@ -119,11 +162,11 @@ public class Main {
 	}
 
 	private void printList(List<?> items, String listName) {
+		System.out.print(System.lineSeparator());
 		log(listName);
 		for (int i = 0; i < Math.min(showResults, items.size()); i++) {
 			System.out.println(items.get(i));
 		}
-		System.out.println(System.lineSeparator());
 	}
 
 	public List<Item> loadItemsAndPrices() {
@@ -152,6 +195,9 @@ public class Main {
 		if (builder.length() > 0) {
 			builder.deleteCharAt(0);
 			sendPriceRequest(builder.toString(), items);
+		}
+		if (items.stream().anyMatch(i -> i.getQuality() < 1)) {
+			logError("Found items with unknow quality!");
 		}
 		log("...Received " + items.size() + " item prices from " + reusableCounter + " requests");
 		return items;

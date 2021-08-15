@@ -138,15 +138,15 @@ public class Item {
 	 * 
 	 * @return avgItemCount * buyPrice * profitFactor
 	 */
-	public double getBuyPower() {
+	public double getProfitBuyPower() {
 		return avgItemCount * buyPriceMax * getProfitFactor();
 	}
 
 	@Override
 	public String toString() {
-		return "Profit:" + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName
-				+ ", Enchantment:" + getEnchantment() + ", Quality:" + getQualityString() + ", Tier:" + getTier()
-				+ ", Buy:" + buyPriceMax + ", Sell:" + sellPriceMin + ", DailyCount:" + avgItemCount + ", City:" + city
-				+ ", Id:" + itemTypeId;
+		return "Profit:" + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName + ", Enchantment:"
+				+ getEnchantment() + ", Quality:" + getQualityString() + ", Tier:" + getTier() + ", ProfitBuyPower:"
+				+ getProfitBuyPower() + ", Buy:" + buyPriceMax + ", Sell:" + sellPriceMin + ", DailyCount:"
+				+ avgItemCount + ", City:" + city + ", Id:" + itemTypeId;
 	}
 }

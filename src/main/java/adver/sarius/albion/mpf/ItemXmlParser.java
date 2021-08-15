@@ -54,12 +54,15 @@ public class ItemXmlParser {
 					String itemName = uniquenameAttribute.getNodeValue();
 					Node maxqualitylevelAttribute = node.getAttributes().getNamedItem("maxqualitylevel");
 					items.removeIf(item -> (item.getItemTypeId().equals(itemName)
-							|| item.getItemTypeId().startsWith(itemName + "@"))
+							|| item.getItemTypeId().startsWith(itemName + "@")
+							|| (itemName.contains("_JOURNAL_") && item.getItemTypeId().startsWith(itemName)))
 							&& item.getQuality() > (maxqualitylevelAttribute == null ? 1
 									: Integer.parseInt(maxqualitylevelAttribute.getNodeValue())));
 
-					if (!items.stream().anyMatch(item -> item.getItemTypeId().equals(itemName)
-							|| item.getItemTypeId().startsWith(itemName + "@"))) {
+					if (!items.stream()
+							.anyMatch(item -> item.getItemTypeId().equals(itemName)
+									|| item.getItemTypeId().startsWith(itemName + "@")
+									|| (itemName.contains("_JOURNAL_") && item.getItemTypeId().startsWith(itemName)))) {
 						Main.log("Found unknown entry in xml: " + uniquenameAttribute);
 					}
 				}
