@@ -110,11 +110,28 @@ public class ProcessingItems {
 		return value;
 	}
 
+	public double getProfit() {
+		double buyTax = useDirectBuy ? 0 : Item.setupFee;
+		double sellTax = useDirectSell ? Item.tax : Item.tax - Item.setupFee;
+		return ((getSellValue() - silverOut) * (1 - sellTax) + silverOut)
+				- ((getBuyValue() - silverIn) * (1 + buyTax) + silverIn);
+	}
+
 	public double getProfitFactor() {
 		double buyTax = useDirectBuy ? 0 : Item.setupFee;
 		double sellTax = useDirectSell ? Item.tax : Item.tax - Item.setupFee;
 		return ((getSellValue() - silverOut) * (1 - sellTax) + silverOut)
 				/ ((getBuyValue() - silverIn) * (1 + buyTax) + silverIn) - 1;
+	}
+
+	public boolean doAllQualitiesMatch(String validQualities) {
+		if (validQualities.isEmpty()) {
+			return true;
+		} else {
+			return getItemsIn().keySet().stream().allMatch(item -> validQualities.contains(item.getQuality() + ""))
+					&& getItemsOut().keySet().stream()
+							.allMatch(item -> validQualities.contains(item.getQuality() + ""));
+		}
 	}
 
 	// TODO: Need to find a good way to display everything

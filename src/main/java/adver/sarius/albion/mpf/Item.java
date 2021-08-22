@@ -142,6 +142,20 @@ public class Item {
 		return avgItemCount * buyPriceMax * getProfitFactor();
 	}
 
+	/**
+	 * Returns true if both are the same ingame item. It ignores things like market
+	 * location and price, and only compares item values like item name, enchanting
+	 * and quality.
+	 * 
+	 * @param item2
+	 * @return
+	 */
+	public boolean equalItem(Item item2) {
+		// TODO: Also check display name? And enchanting level? Which both should
+		// already by covered the ItemTypeId.
+		return this.getItemTypeId().equals(item2.getItemTypeId()) && this.getQuality() == item2.getQuality();
+	}
+
 	@Override
 	public String toString() {
 		return "Profit:" + String.format("%.2f%%", getProfitFactor() * 100) + ", Name:" + displayName + ", Enchantment:"

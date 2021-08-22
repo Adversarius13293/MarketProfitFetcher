@@ -117,6 +117,7 @@ public class ItemXmlParser {
 		return results;
 	}
 
+	// TODO: Move method into ProcessingItems?
 	/**
 	 * Returns a list with all combinations of given qualities and cities matching
 	 * the item names from itemPrices.

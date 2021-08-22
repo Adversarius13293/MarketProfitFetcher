@@ -23,9 +23,10 @@ public class Main {
 	private PricesApi pricesApi = new PricesApi();
 	private ChartsApi chartsApi = new ChartsApi();
 
+	// TODO: move config values in each print method, to configure them separately
 	private long minPrice = 0; // what I want to sell for at least
-	private long maxPrice = 200000; // what I want to pay at most
-	private double minWinPercent = 0.20; // how much percent of the investment after taxes
+	private long maxPrice = 500000; // what I want to pay at most
+	private double minWinPercent = 0.05; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
 	private String qualities = "1"; // qualities to search for, comma separated, empty for all
 	private int avgCountTimespan = 3; // in days
@@ -38,15 +39,9 @@ public class Main {
 	// internal counter for logging
 	private int reusableCounter = 0;
 
-	// TODO: Just collect prices and history for every item, and filter afterwards?
-	// TODO: Black Market and Caerleon fetcher
-	// TODO: Artifact salvage profits
 	// TODO: Use local swagger.json for correct names and maybe dates?
 	// TODO: Evaluate the date on prices. To show old ones I should check manually.
 	// Also if there is history for every day.
-	// TODO: Get items with no sell price, since i can define the value? they should
-	// have a profit value of -1.
-	// TODO: Remove invalid item qualities by using the xml items
 
 	public static void main(String[] args) {
 		Item.setupFee = 0.015; // for sell and buy orders
@@ -55,7 +50,13 @@ public class Main {
 		ProcessingItems.useDirectSell = false;
 
 		Main myMain = new Main();
+		// TODO: Need to fix this, probably by giving each method its own filter params
+		String oldCities = myMain.cities;
+		if (!myMain.cities.isEmpty()) {
+			myMain.cities = myMain.cities + ",Caerleon,Black Market";
+		}
 		List<Item> items = myMain.loadItemsAndPrices();
+		myMain.cities = oldCities;
 
 		log("Parsing xml...");
 		ItemXmlParser xmlParser = new ItemXmlParser("items.xml");
@@ -80,6 +81,9 @@ public class Main {
 		log("Reading artifact salvaging...");
 		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
 		myMain.printArtifactSalvageProfits(artifactSalvage);
+
+		// currently too many old offers to make profit in a reasonable time
+//		myMain.printMarketToMarket("Caerleon", "Black Market", items);
 
 		myMain.printFlippingProfits(items);
 		log("Program finished.");
@@ -134,15 +138,12 @@ public class Main {
 		// TODO: filtering by count
 		log("Filtering artifact salvage results...");
 		List<ProcessingItems> finalResult = salvaging.stream().filter(i -> {
-			boolean qualitiesFit = i.getItemsIn().keySet().stream()
-					.allMatch(item -> qualities.contains(item.getQuality() + ""))
-					&& i.getItemsOut().keySet().stream().allMatch(item -> qualities.contains(item.getQuality() + ""));
 			boolean citiesFit = i.getItemsIn().keySet().stream().allMatch(item -> cities.contains(item.getCity()))
 					&& i.getItemsOut().keySet().stream().allMatch(item -> cities.contains(item.getCity()));
 
 			return i.getSellValue() > this.minPrice && i.getBuyValue() < this.maxPrice
 					&& i.getProfitFactor() > minWinPercent && (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
-					&& (cities.isEmpty() || citiesFit) && (qualities.isEmpty() || qualitiesFit);
+					&& (cities.isEmpty() || citiesFit) && i.doAllQualitiesMatch(qualities);
 		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed())
 				.collect(Collectors.toList());
 		printList(finalResult, "Artifact salvaging:");
@@ -159,6 +160,32 @@ public class Main {
 					&& (qualities.isEmpty() || qualities.contains(i.getQuality() + ""));
 		}).sorted(Comparator.comparingDouble((Item i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
 		printList(finalResult, "Flipping profits:");
+	}
+
+	public void printMarketToMarket(String fromMarket, String toMarket, List<Item> items) {
+		List<Item> source = items.stream().filter(i -> fromMarket.equals(i.getCity())).collect(Collectors.toList());
+		List<Item> target = items.stream().filter(i -> toMarket.equals(i.getCity())).collect(Collectors.toList());
+		List<ProcessingItems> processed = new ArrayList<>();
+		for (Item t : source) {
+			// TODO: Should I error check for more than one result?
+			Optional<Item> match = target.stream().filter(i -> i.equalItem(t)).findFirst();
+			if (match.isPresent()) {
+				// TODO: TODO: TODO: Filtering
+				ProcessingItems pi = new ProcessingItems(fromMarket + " to " + toMarket);
+				pi.addItemIn(t, 1);
+				pi.addItemOut(match.get(), 1);
+				processed.add(pi);
+			}
+		}
+		
+		List<ProcessingItems> filtered = processed.stream().filter(i -> {
+			return i.getSellValue() > this.minPrice && i.getBuyValue() < this.maxPrice
+					&& i.getProfitFactor() > minWinPercent 
+					&& (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
+					&& i.doAllQualitiesMatch(qualities);
+		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
+		
+		printList(filtered, "Transport from market " + fromMarket + " to market " + toMarket + ":");
 	}
 
 	private void printList(List<?> items, String listName) {
