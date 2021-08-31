@@ -21,7 +21,6 @@ import org.xml.sax.SAXException;
 public class ItemXmlParser {
 	private Document xmlDoc;
 
-	//
 	public ItemXmlParser(String filePath) {
 		// xml parsing from:
 		// https://mkyong.com/java/how-to-read-xml-file-in-java-dom-parser/
@@ -70,8 +69,8 @@ public class ItemXmlParser {
 		}
 	}
 
-	private double silverReturnFactor = 0.75;
-	private double resourceReturnFactor = 0.25;
+	private double salvageSilverReturnFactor = 0.75;
+	private double salvageResourceReturnFactor = 0.25;
 
 	public List<ProcessingItems> readArtifactSalvage(List<Item> itemPrices) {
 		List<ProcessingItems> results = new ArrayList<>();
@@ -92,11 +91,11 @@ public class ItemXmlParser {
 				Map<String, Double> itemsIn = new HashMap<>();
 				itemsIn.put(uniquename, 1d);
 				double silverIn = 0;
-				Map<String, Double> itemsOut = new HashMap<>();
-				double silverOut = itemvalue * silverReturnFactor;
+				double silverOut = itemvalue * salvageSilverReturnFactor;
 
 				for (int j = 0; j < node.getChildNodes().getLength(); j++) {
 					if ("craftingrequirements".equals(node.getChildNodes().item(j).getNodeName())) {
+						Map<String, Double> itemsOut = new HashMap<>();
 						NodeList children = node.getChildNodes().item(j).getChildNodes();
 						for (int k = 0; k < children.getLength(); k++) {
 							if ("craftresource".equals(children.item(k).getNodeName())) {
@@ -104,16 +103,14 @@ public class ItemXmlParser {
 								Node craftingItem = children.item(k).getAttributes().getNamedItem("uniquename");
 								Node craftingCount = children.item(k).getAttributes().getNamedItem("count");
 								itemsOut.put(craftingItem.getNodeValue(),
-										Double.parseDouble(craftingCount.getNodeValue()) * resourceReturnFactor);
+										Double.parseDouble(craftingCount.getNodeValue()) * salvageResourceReturnFactor);
 							}
 						}
-						results.addAll(getPriceCombinations(itemsIn, silverIn, itemsOut, silverOut, itemPrices));
-
+						results.addAll(getPriceCombinations(itemsIn, silverIn, itemsOut, silverOut, itemPrices, ProcessingItems.OPERATION_SALVAGE_ARTIFACT));
 					}
 				}
 			}
 		}
-
 		return results;
 	}
 
@@ -130,28 +127,19 @@ public class ItemXmlParser {
 	 * @return
 	 */
 	private List<ProcessingItems> getPriceCombinations(Map<String, Double> itemsIn, double silverIn,
-			Map<String, Double> itemsOut, double silverOut, List<Item> itemPrices) {
+			Map<String, Double> itemsOut, double silverOut, List<Item> itemPrices, String operation) {
 		List<ProcessingItems> collected = new ArrayList<>();
 
 		Map<String, List<Item>> itemVariations = new HashMap<>();
 		List<String> itemNameList = new ArrayList<>();
-		// schleife über input map
 		for (String itemName : itemsIn.keySet()) {
-			// pro entry alle items raussuchen
 			itemVariations.put(itemName,
 					itemPrices.stream().filter(i -> i.getItemTypeId().equals(itemName)).collect(Collectors.toList()));
 			itemNameList.add(itemName);
 		}
-		// List von Map so wie in ProcessingItem zurückgeben
-		// will eine Map<Item, Count> als Objekt haben. Also eine List davon als
-		// rekursions ergebnis
-		// rekursiv alle slots durchgehen, und darin über alle elemente iterieren
 		List<Map<Item, Double>> inputCombinations = new ArrayList<>();
 		recursivelyGetCombinations(inputCombinations, new HashMap<>(itemsIn.size()), itemNameList, itemVariations,
 				itemsIn);
-		// dann habe ich also alle input items durchkombiniert
-		// gleiche für output machen.
-		// TODO: use own method?
 		itemVariations.clear();
 		itemNameList.clear();
 		for (String itemName : itemsOut.keySet()) {
@@ -163,11 +151,10 @@ public class ItemXmlParser {
 		recursivelyGetCombinations(outputCombinations, new HashMap<>(itemsOut.size()), itemNameList, itemVariations,
 				itemsOut);
 
-		// dann mit double loop die beiden durchkombinieren
 		for (Map<Item, Double> inputMap : inputCombinations) {
 			for (Map<Item, Double> outputMap : outputCombinations) {
 				collected.add(new ProcessingItems(inputMap, silverIn, outputMap, silverOut,
-						ProcessingItems.OPERATION_SALVAGE_ARTIFACT));
+						operation));
 			}
 		}
 		return collected;
@@ -213,8 +200,55 @@ public class ItemXmlParser {
 
 	}
 
-	public void readMaterialTransmute(List<Item> itemPrices) {
+	// TODO: Can I just parse the entire file for crafting, enchanting and
+	// salvaging? And filter afterwards. May need shopcategory as extra attribute in
+	// ProcessingItems
+	public List<ProcessingItems> readMaterialTransmute(List<Item> itemPrices) {
+		// TODO: Missing maps and sigils
+		List<ProcessingItems> results = new ArrayList<>();
 
+		NodeList nodes = xmlDoc.getElementsByTagName("simpleitem");
+
+		for (int i = 0; i < nodes.getLength(); i++) {
+			Node node = nodes.item(i);
+			Node shopcategory = node.getAttributes().getNamedItem("shopcategory");
+			if (shopcategory != null && "materials".equals(shopcategory.getNodeValue())) {
+				String uniquename = node.getAttributes().getNamedItem("uniquename").getNodeValue();
+
+				for (int j = 0; j < node.getChildNodes().getLength(); j++) {
+					Node craftingNode = node.getChildNodes().item(j);
+					if ("craftingrequirements".equals(craftingNode.getNodeName())) {
+						double silverIn = 0;
+						Node craftingCostNode = craftingNode.getAttributes().getNamedItem("silver");
+						if (craftingCostNode != null) {
+							silverIn = Double.parseDouble(craftingCostNode.getNodeValue());
+						}
+						double amountOut = 1;
+						Node amountNode = craftingNode.getAttributes().getNamedItem("amountcrafted");
+						if (amountNode != null) {
+							amountOut = Double.parseDouble(amountNode.getNodeValue());
+						}
+
+						Map<String, Double> itemsOut = new HashMap<>();
+						itemsOut.put(uniquename, amountOut);
+
+						Map<String, Double> itemsIn = new HashMap<>();
+						NodeList children = craftingNode.getChildNodes();
+						for (int k = 0; k < children.getLength(); k++) {
+							if ("craftresource".equals(children.item(k).getNodeName())) {
+								// TODO: null checks?
+								Node craftingItem = children.item(k).getAttributes().getNamedItem("uniquename");
+								Node craftingCount = children.item(k).getAttributes().getNamedItem("count");
+								itemsIn.put(craftingItem.getNodeValue(),
+										Double.parseDouble(craftingCount.getNodeValue()));
+							}
+						}
+						results.addAll(getPriceCombinations(itemsIn, silverIn, itemsOut, 0, itemPrices, ProcessingItems.OPERATION_TRANSMUTE));
+					}
+				}
+			}
+		}
+		return results;
 	}
 
 	public void readEquipmentEnchanting(List<Item> itemPrices) {

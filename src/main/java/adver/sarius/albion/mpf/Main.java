@@ -25,7 +25,7 @@ public class Main {
 
 	// TODO: move config values in each print method, to configure them separately
 	private long minPrice = 0; // what I want to sell for at least
-	private long maxPrice = 500000; // what I want to pay at most
+	private long maxPrice = 600000; // what I want to pay at most
 	private double minWinPercent = 0.05; // how much percent of the investment after taxes
 	private String cities = "Fort Sterling"; // comma separated, or empty for all
 	private String qualities = "1"; // qualities to search for, comma separated, empty for all
@@ -53,7 +53,7 @@ public class Main {
 		// TODO: Need to fix this, probably by giving each method its own filter params
 		String oldCities = myMain.cities;
 		if (!myMain.cities.isEmpty()) {
-			myMain.cities = myMain.cities + ",Caerleon,Black Market";
+//			myMain.cities = myMain.cities + ",Caerleon,Black Market";
 		}
 		List<Item> items = myMain.loadItemsAndPrices();
 		myMain.cities = oldCities;
@@ -81,6 +81,11 @@ public class Main {
 		log("Reading artifact salvaging...");
 		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
 		myMain.printArtifactSalvageProfits(artifactSalvage);
+		
+
+		log("Reading material transmute...");
+		List<ProcessingItems> transmute = xmlParser.readMaterialTransmute(items);
+		myMain.printTransmuteProfits(transmute);
 
 		// currently too many old offers to make profit in a reasonable time
 //		myMain.printMarketToMarket("Caerleon", "Black Market", items);
@@ -147,6 +152,21 @@ public class Main {
 		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed())
 				.collect(Collectors.toList());
 		printList(finalResult, "Artifact salvaging:");
+	}
+	
+	public void printTransmuteProfits(List<ProcessingItems> transmute) {
+		// TODO: filtering by count
+		log("Filtering material transmute results...");
+		List<ProcessingItems> finalResult = transmute.stream().filter(i -> {
+			boolean citiesFit = i.getItemsIn().keySet().stream().allMatch(item -> cities.contains(item.getCity()))
+					&& i.getItemsOut().keySet().stream().allMatch(item -> cities.contains(item.getCity()));
+
+			return i.getSellValue() > this.minPrice && i.getBuyValue() < this.maxPrice
+					&& i.getProfitFactor() > minWinPercent && (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
+					&& (cities.isEmpty() || citiesFit) && i.doAllQualitiesMatch(qualities);
+		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed())
+				.collect(Collectors.toList());
+		printList(finalResult, "Material transmute:");
 	}
 
 	public void printFlippingProfits(List<Item> items) {

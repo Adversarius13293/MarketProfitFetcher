@@ -11,7 +11,7 @@ import java.util.Map.Entry;
 public class ProcessingItems {
 
 	public static final String OPERATION_SALVAGE_ARTIFACT = "Salvage Artifact (Artifact Foundry/Repair Station)";
-//	public static final String OPERATION_TRANSMUTE = "Transmute (Artifact Foundry)";
+	public static final String OPERATION_TRANSMUTE = "Transmute (Artifact Foundry)";
 	// TODO: .... more operations
 
 	public static boolean useDirectBuy = true;
@@ -124,6 +124,8 @@ public class ProcessingItems {
 				/ ((getBuyValue() - silverIn) * (1 + buyTax) + silverIn) - 1;
 	}
 
+	// TODO: Somehow always return true for non-quality items? Otherwise nothing
+	// will work with those items, without quality 1 as given valid quality.
 	public boolean doAllQualitiesMatch(String validQualities) {
 		if (validQualities.isEmpty()) {
 			return true;
