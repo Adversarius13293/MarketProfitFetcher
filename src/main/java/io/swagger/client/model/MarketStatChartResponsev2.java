@@ -26,7 +26,7 @@ import java.io.IOException;
  * MarketStatChartResponsev2
  */
 
-@javax.annotation.Generated(value = "io.swagger.codegen.v3.generators.java.JavaClientCodegen", date = "2021-08-06T23:40:29.678+02:00[Europe/Berlin]")
+
 public class MarketStatChartResponsev2 {
   @SerializedName("location")
   private String location = null;

@@ -81,7 +81,6 @@ public class Main {
 		log("Reading artifact salvaging...");
 		List<ProcessingItems> artifactSalvage = xmlParser.readArtifactSalvage(items);
 		myMain.printArtifactSalvageProfits(artifactSalvage);
-		
 
 		log("Reading material transmute...");
 		List<ProcessingItems> transmute = xmlParser.readMaterialTransmute(items);
@@ -97,6 +96,7 @@ public class Main {
 	// Used swagger-codegen for client:
 	// java -jar swagger-codegen-cli-3.0.27.jar generate -i
 	// https://www.albion-online-data.com/api/v2/swagger.json -l java
+	// --additional-properties hideGenerationTimestamp=true
 	//
 	// Need to manually map returned attribute names, since they somehow don't match
 	// the swagger.json
@@ -153,7 +153,7 @@ public class Main {
 				.collect(Collectors.toList());
 		printList(finalResult, "Artifact salvaging:");
 	}
-	
+
 	public void printTransmuteProfits(List<ProcessingItems> transmute) {
 		// TODO: filtering by count
 		log("Filtering material transmute results...");
@@ -197,14 +197,14 @@ public class Main {
 				processed.add(pi);
 			}
 		}
-		
+
 		List<ProcessingItems> filtered = processed.stream().filter(i -> {
 			return i.getSellValue() > this.minPrice && i.getBuyValue() < this.maxPrice
-					&& i.getProfitFactor() > minWinPercent 
-					&& (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
+					&& i.getProfitFactor() > minWinPercent && (!filterOutMissingBuyPrice || i.getBuyValue() > 0)
 					&& i.doAllQualitiesMatch(qualities);
-		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed()).collect(Collectors.toList());
-		
+		}).sorted(Comparator.comparingDouble((ProcessingItems i) -> i.getProfitFactor()).reversed())
+				.collect(Collectors.toList());
+
 		printList(filtered, "Transport from market " + fromMarket + " to market " + toMarket + ":");
 	}
 

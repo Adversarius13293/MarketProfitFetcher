@@ -28,7 +28,7 @@ import java.util.List;
  * MarketHistoriesResponse
  */
 
-@javax.annotation.Generated(value = "io.swagger.codegen.v3.generators.java.JavaClientCodegen", date = "2021-08-06T23:40:29.678+02:00[Europe/Berlin]")
+
 public class MarketHistoriesResponse {
   @SerializedName("location")
   private String location = null;
